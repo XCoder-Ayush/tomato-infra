@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: mysql
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "3307:${MYSQL_PORT}"
+
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    volumes:
+      - ./mongo_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    ports:
+      - "27016:${MONGO_PORT}"
+
+  tomato-service-registry:
+    build:
+      context: ../tomato-service-registry
+      dockerfile: Dockerfile
+    container_name: tomato-service-registry
+    ports:
+      - "${EUREKA_PORT}:${EUREKA_PORT}"
+    depends_on:
+      - mysql
+
+  tomato-api-gateway:
+    build:
+      context: ../tomato-api-gateway
+      dockerfile: Dockerfile
+    container_name: tomato-api-gateway
+    environment:
+      - PROFILE=${PROFILE}
+      - NODE_ENV=${NODE_ENV}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - RAZORPAY_PUBLIC_KEY=${RAZORPAY_PUBLIC_KEY}
+      - RAZORPAY_SECRET_KEY=${RAZORPAY_SECRET_KEY}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_ACC_EMAIL=${SMTP_ACC_EMAIL}
+      - SMTP_ACC_PASSWORD=${SMTP_ACC_PASSWORD}
+      - TWILIO_ACC_SID=${TWILIO_ACC_SID}
+      - TWILIO_ACC_PHONE=${TWILIO_ACC_PHONE}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - EMAIL_VALIDATION_API_KEY=${EMAIL_VALIDATION_API_KEY}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - mongo
+      - tomato-service-registry
+
+  tomato-order-service:
+    build:
+      context: ../tomato-order-service
+      dockerfile: Dockerfile
+    container_name: tomato-order-service
+    environment:
+      - PORT=${ORDER_SERVICE_PORT}
+      - DB_URL=${DB_URL}
+      - DB_NAME=${MYSQL_DATABASE}
+      - APPLICATION_NAME=${APPLICATION_NAME}
+      - HOST=${HOST}
+    ports:
+      - "${ORDER_SERVICE_PORT}:${ORDER_SERVICE_PORT}"
+    depends_on:
+      - mysql
+      - mongo
+      - tomato-service-registry
+
+volumes:
+  mysql_data:
+  mongo_data:
